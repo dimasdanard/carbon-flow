@@ -3,20 +3,17 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CarbonFlow: Climate System Simulator</title>
+
+<title>CarbonFlow Climate Simulator</title>
 
 <style>
 
 body{
-font-family:Segoe UI, Arial;
+font-family:Segoe UI;
 background:#0f1720;
 color:white;
 text-align:center;
 margin:0;
-}
-
-h1{
-margin-top:10px;
 }
 
 .wrapper{
@@ -31,7 +28,7 @@ margin-top:10px;
 background:#1b2635;
 padding:15px;
 border-radius:10px;
-width:300px;
+width:320px;
 box-shadow:0 0 15px rgba(0,0,0,0.4);
 text-align:left;
 }
@@ -47,23 +44,24 @@ width:100%;
 }
 
 .metric{
-margin-top:8px;
+margin-top:6px;
 font-size:14px;
 }
 
-button{
-background:#2ecc71;
-border:none;
-padding:8px 12px;
+.target{
 margin-top:10px;
-border-radius:6px;
-cursor:pointer;
-color:white;
+font-size:13px;
+color:#ddd;
+}
+
+.success{
+color:#2ecc71;
 font-weight:bold;
 }
 
-button:hover{
-background:#27ae60;
+.fail{
+color:#e74c3c;
+font-weight:bold;
 }
 
 </style>
@@ -72,7 +70,7 @@ background:#27ae60;
 <body>
 
 <h1>CarbonFlow</h1>
-<p>Interactive Climate System Simulator</p>
+<p>Climate System Simulator</p>
 
 <div class="wrapper">
 
@@ -96,25 +94,23 @@ Forest Restoration
 
 <h3>Climate System</h3>
 
-<div class="metric">
-Year: <span id="year">2025</span>
+<div class="metric">Year: <span id="year">2025</span></div>
+<div class="metric">Atmospheric CO₂: <span id="co2">420</span> ppm</div>
+<div class="metric">Temperature Increase: <span id="temp">1.2</span> °C</div>
+<div class="metric">Carbon Budget: <span id="budget">500</span> Gt</div>
+<div class="metric">Net Emissions: <span id="net">0</span> Gt/yr</div>
+
+<div class="target">
+
+<h3>Targets</h3>
+
+• Reach **Net-Zero before 2050**  
+• Keep **Temperature < 1.5°C**  
+• Keep **Carbon Budget > 0**
+
 </div>
 
-<div class="metric">
-Atmospheric CO₂: <span id="co2">420</span> ppm
-</div>
-
-<div class="metric">
-Temperature Increase: <span id="temp">1.20</span> °C
-</div>
-
-<div class="metric">
-Carbon Budget Remaining: <span id="budget">500</span> Gt
-</div>
-
-<div class="metric">
-Net Emissions: <span id="net">0</span> Gt/yr
-</div>
+<div id="status"></div>
 
 <button onclick="resetGame()">Reset</button>
 
@@ -130,16 +126,18 @@ const ctx=canvas.getContext("2d")
 let particles=[]
 
 const nodes={
-energy:[100,200],
-transport:[100,330],
-industry:[100,80],
-forest:[550,200],
-atmosphere:[330,200]
+energy:[120,210],
+transport:[120,340],
+industry:[120,80],
+forest:[540,210],
+atmosphere:[330,210]
 }
 
 let year=2025
 let co2=420
 let carbonBudget=500
+
+/* DRAW NODES */
 
 function drawNode(name,x,y){
 
@@ -153,22 +151,21 @@ ctx.arc(x,y,35,0,Math.PI*2)
 ctx.fill()
 
 ctx.fillStyle="white"
-ctx.font="14px Arial"
 ctx.fillText(name,x-30,y+50)
 
 }
+
+/* PARTICLES */
 
 function createParticles(x1,y1,x2,y2,count){
 
 for(let i=0;i<count;i++){
 
 particles.push({
-
 x:x1,
 y:y1,
-tx:x2,
-ty:y2
-
+vx:(x2-x1)/50,
+vy:(y2-y1)/50
 })
 
 }
@@ -178,11 +175,11 @@ ty:y2
 function updateParticles(){
 
 particles.forEach(p=>{
-
-p.x+=(p.tx-p.x)*0.02
-p.y+=(p.ty-p.y)*0.02
-
+p.x+=p.vx
+p.y+=p.vy
 })
+
+particles=particles.filter(p=>p.x<700 && p.y<500)
 
 }
 
@@ -191,14 +188,14 @@ function drawParticles(){
 ctx.fillStyle="orange"
 
 particles.forEach(p=>{
-
 ctx.beginPath()
-ctx.arc(p.x,p.y,3,0,Math.PI*2)
+ctx.arc(p.x,p.y,2,0,Math.PI*2)
 ctx.fill()
-
 })
 
 }
+
+/* CALCULATE EMISSIONS */
 
 function calculate(){
 
@@ -219,13 +216,20 @@ document.getElementById("net").innerText=net.toFixed(2)
 
 simulate(net)
 
+createParticles(...nodes.energy,...nodes.atmosphere,energyE)
+createParticles(...nodes.transport,...nodes.atmosphere,transportE)
+createParticles(...nodes.industry,...nodes.atmosphere,industryE)
+createParticles(...nodes.atmosphere,...nodes.forest,forestSink)
+
 }
+
+/* SIMULATION */
 
 function simulate(net){
 
 year++
 
-co2+=net*0.5
+co2+=net*0.4
 
 carbonBudget-=Math.max(net,0)
 
@@ -236,7 +240,29 @@ document.getElementById("co2").innerText=co2.toFixed(1)
 document.getElementById("temp").innerText=temp.toFixed(2)
 document.getElementById("budget").innerText=Math.max(0,carbonBudget).toFixed(0)
 
+checkTargets(temp,net)
+
 }
+
+/* TARGET CHECK */
+
+function checkTargets(temp,net){
+
+let status=document.getElementById("status")
+
+if(net<=0 && year<=2050 && temp<1.5){
+
+status.innerHTML="<p class='success'>SUCCESS: Net-Zero Achieved!</p>"
+
+}else if(year>2100 || carbonBudget<=0 || temp>2){
+
+status.innerHTML="<p class='fail'>FAIL: Climate Targets Missed</p>"
+
+}
+
+}
+
+/* DRAW */
 
 function draw(){
 
@@ -255,32 +281,24 @@ requestAnimationFrame(draw)
 
 }
 
+/* RESET */
+
 function resetGame(){
 
 year=2025
 co2=420
 carbonBudget=500
-
-document.getElementById("year").innerText=year
-document.getElementById("co2").innerText=co2
-document.getElementById("budget").innerText=carbonBudget
+particles=[]
 
 }
+
+/* EVENTS */
 
 document.querySelectorAll("input").forEach(el=>{
 el.addEventListener("input",calculate)
 })
 
-setInterval(()=>{
-
-calculate()
-
-createParticles(...nodes.energy,...nodes.atmosphere,3)
-createParticles(...nodes.transport,...nodes.atmosphere,2)
-createParticles(...nodes.industry,...nodes.atmosphere,3)
-createParticles(...nodes.atmosphere,...nodes.forest,2)
-
-},1000)
+setInterval(calculate,1000)
 
 draw()
 
