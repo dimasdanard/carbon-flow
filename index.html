@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CarbonFlow: Climate System Simulator</title>
+
+<style>
+
+body{
+font-family:Segoe UI, Arial;
+background:#0f1720;
+color:white;
+text-align:center;
+margin:0;
+}
+
+h1{
+margin-top:10px;
+}
+
+.wrapper{
+display:flex;
+flex-wrap:wrap;
+justify-content:center;
+gap:20px;
+margin-top:10px;
+}
+
+.panel{
+background:#1b2635;
+padding:15px;
+border-radius:10px;
+width:300px;
+box-shadow:0 0 15px rgba(0,0,0,0.4);
+text-align:left;
+}
+
+canvas{
+background:#111;
+border-radius:10px;
+border:2px solid #333;
+}
+
+.slider{
+width:100%;
+}
+
+.metric{
+margin-top:8px;
+font-size:14px;
+}
+
+button{
+background:#2ecc71;
+border:none;
+padding:8px 12px;
+margin-top:10px;
+border-radius:6px;
+cursor:pointer;
+color:white;
+font-weight:bold;
+}
+
+button:hover{
+background:#27ae60;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>CarbonFlow</h1>
+<p>Interactive Climate System Simulator</p>
+
+<div class="wrapper">
+
+<canvas id="flowCanvas" width="650" height="420"></canvas>
+
+<div class="panel">
+
+<h3>Climate Policies</h3>
+
+Renewable Energy
+<input type="range" min="0" max="100" value="20" class="slider" id="renew">
+
+Electric Vehicles
+<input type="range" min="0" max="100" value="10" class="slider" id="ev">
+
+Industry Efficiency
+<input type="range" min="0" max="100" value="10" class="slider" id="industry">
+
+Forest Restoration
+<input type="range" min="0" max="100" value="20" class="slider" id="forest">
+
+<h3>Climate System</h3>
+
+<div class="metric">
+Year: <span id="year">2025</span>
+</div>
+
+<div class="metric">
+Atmospheric CO₂: <span id="co2">420</span> ppm
+</div>
+
+<div class="metric">
+Temperature Increase: <span id="temp">1.20</span> °C
+</div>
+
+<div class="metric">
+Carbon Budget Remaining: <span id="budget">500</span> Gt
+</div>
+
+<div class="metric">
+Net Emissions: <span id="net">0</span> Gt/yr
+</div>
+
+<button onclick="resetGame()">Reset</button>
+
+</div>
+
+</div>
+
+<script>
+
+const canvas=document.getElementById("flowCanvas")
+const ctx=canvas.getContext("2d")
+
+let particles=[]
+
+const nodes={
+energy:[100,200],
+transport:[100,330],
+industry:[100,80],
+forest:[550,200],
+atmosphere:[330,200]
+}
+
+let year=2025
+let co2=420
+let carbonBudget=500
+
+function drawNode(name,x,y){
+
+ctx.fillStyle="#3498db"
+
+if(name=="Atmosphere") ctx.fillStyle="#e74c3c"
+if(name=="Forest") ctx.fillStyle="#2ecc71"
+
+ctx.beginPath()
+ctx.arc(x,y,35,0,Math.PI*2)
+ctx.fill()
+
+ctx.fillStyle="white"
+ctx.font="14px Arial"
+ctx.fillText(name,x-30,y+50)
+
+}
+
+function createParticles(x1,y1,x2,y2,count){
+
+for(let i=0;i<count;i++){
+
+particles.push({
+
+x:x1,
+y:y1,
+tx:x2,
+ty:y2
+
+})
+
+}
+
+}
+
+function updateParticles(){
+
+particles.forEach(p=>{
+
+p.x+=(p.tx-p.x)*0.02
+p.y+=(p.ty-p.y)*0.02
+
+})
+
+}
+
+function drawParticles(){
+
+ctx.fillStyle="orange"
+
+particles.forEach(p=>{
+
+ctx.beginPath()
+ctx.arc(p.x,p.y,3,0,Math.PI*2)
+ctx.fill()
+
+})
+
+}
+
+function calculate(){
+
+let renew=document.getElementById("renew").value/100
+let ev=document.getElementById("ev").value/100
+let ind=document.getElementById("industry").value/100
+let forest=document.getElementById("forest").value/100
+
+let energyE=12*(1-renew)
+let transportE=8*(1-ev)
+let industryE=10*(1-ind)
+
+let forestSink=6*forest
+
+let net=energyE+transportE+industryE-forestSink
+
+document.getElementById("net").innerText=net.toFixed(2)
+
+simulate(net)
+
+}
+
+function simulate(net){
+
+year++
+
+co2+=net*0.5
+
+carbonBudget-=Math.max(net,0)
+
+let temp=2.5*Math.log(co2/280)
+
+document.getElementById("year").innerText=year
+document.getElementById("co2").innerText=co2.toFixed(1)
+document.getElementById("temp").innerText=temp.toFixed(2)
+document.getElementById("budget").innerText=Math.max(0,carbonBudget).toFixed(0)
+
+}
+
+function draw(){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+drawNode("Energy",...nodes.energy)
+drawNode("Transport",...nodes.transport)
+drawNode("Industry",...nodes.industry)
+drawNode("Forest",...nodes.forest)
+drawNode("Atmosphere",...nodes.atmosphere)
+
+updateParticles()
+drawParticles()
+
+requestAnimationFrame(draw)
+
+}
+
+function resetGame(){
+
+year=2025
+co2=420
+carbonBudget=500
+
+document.getElementById("year").innerText=year
+document.getElementById("co2").innerText=co2
+document.getElementById("budget").innerText=carbonBudget
+
+}
+
+document.querySelectorAll("input").forEach(el=>{
+el.addEventListener("input",calculate)
+})
+
+setInterval(()=>{
+
+calculate()
+
+createParticles(...nodes.energy,...nodes.atmosphere,3)
+createParticles(...nodes.transport,...nodes.atmosphere,2)
+createParticles(...nodes.industry,...nodes.atmosphere,3)
+createParticles(...nodes.atmosphere,...nodes.forest,2)
+
+},1000)
+
+draw()
+
+</script>
+
+</body>
+</html>
