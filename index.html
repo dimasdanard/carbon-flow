@@ -4,16 +4,15 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Carbon City Defense</title>
+<title>EcoCity Builder</title>
 
 <style>
 
 body{
 background:#0b1320;
 color:white;
-text-align:center;
 font-family:Arial;
-margin:0;
+text-align:center;
 }
 
 canvas{
@@ -22,7 +21,7 @@ margin-top:10px;
 }
 
 button{
-padding:8px;
+padding:6px;
 margin:4px;
 border:none;
 border-radius:6px;
@@ -35,15 +34,17 @@ cursor:pointer;
 
 <body>
 
-<h1>Carbon City Defense</h1>
+<h1>EcoCity Builder</h1>
 
-<canvas id="game" width="900" height="520"></canvas>
+<canvas id="map" width="600" height="600"></canvas>
 
 <div>
 
-<button onclick="setTool('forest')">🌳 Forest</button>
-<button onclick="setTool('solar')">☀ Solar</button>
-<button onclick="setTool('capture')">🧪 Carbon Capture</button>
+<button onclick="tool='park'">🌳 Park</button>
+<button onclick="tool='solar'">☀ Solar</button>
+<button onclick="tool='housing'">🏢 Housing</button>
+<button onclick="tool='industry'">🏭 Industry</button>
+<button onclick="tool='transit'">🚇 Transit</button>
 
 </div>
 
@@ -51,57 +52,40 @@ cursor:pointer;
 
 Year: <span id="year">2025</span> |
 Temp: <span id="temp">1.2</span>°C |
-Sea: <span id="sea">0</span> cm |
-Score: <span id="score">0</span>
+Economy: <span id="eco">100</span> |
+CO₂: <span id="co2">100</span>
 
 </div>
 
 <script>
 
-/* GAME CONSTANTS */
-
-const canvas=document.getElementById("game")
+const canvas=document.getElementById("map")
 const ctx=canvas.getContext("2d")
 
-const cell=40
-const rows=13
-const cols=22
+const grid=20
+const cell=30
 
-let grid=[]
-let towers=[]
-let co2=[]
-let cars=[]
+let map=[]
 
-let tool="forest"
+let tool="park"
 
 let year=2025
 let temp=1.2
-let sea=0
-let score=0
+let economy=100
+let co2=100
 
-let disasterTimer=0
+/* INIT MAP */
 
-/* CREATE MAP */
+for(let r=0;r<grid;r++){
 
-for(let r=0;r<rows;r++){
+map[r]=[]
 
-grid[r]=[]
+for(let c=0;c<grid;c++){
 
-for(let c=0;c<cols;c++){
-
-if(r<3) grid[r][c]="industry"
-else if(r<7) grid[r][c]="urban"
-else if(r<10) grid[r][c]="green"
-else grid[r][c]="coastal"
+map[r][c]="empty"
 
 }
 
-}
-
-/* TOOL */
-
-function setTool(t){
-tool=t
 }
 
 /* BUILD */
@@ -110,158 +94,46 @@ canvas.onclick=function(e){
 
 let rect=canvas.getBoundingClientRect()
 
-let x=e.clientX-rect.left
-let y=e.clientY-rect.top
+let x=Math.floor((e.clientX-rect.left)/cell)
+let y=Math.floor((e.clientY-rect.top)/cell)
 
-let r=Math.floor(y/cell)
-let c=Math.floor(x/cell)
-
-let zone=grid[r][c]
-
-if(tool==="forest" && zone!=="green") return
-if(tool==="solar" && zone!=="urban") return
-if(tool==="capture" && zone!=="industry") return
-
-towers.push({r,c,type:tool})
+map[y][x]=tool
 
 }
 
-/* INDUSTRY EMISSIONS */
+/* EMISSIONS */
 
-function spawnIndustryCO2(){
+function calculate(){
 
-for(let c=0;c<cols;c++){
+co2=0
 
-if(grid[0][c]==="industry" && Math.random()<0.3){
+map.forEach(row=>{
+row.forEach(cell=>{
 
-co2.push({
-x:c*cell+20,
-y:20,
-speed:1
+if(cell==="industry") co2+=4
+if(cell==="housing") co2+=1
+if(cell==="solar") co2-=2
+if(cell==="park") co2-=1
+if(cell==="transit") co2-=2
+
+})
 })
 
 }
 
-}
+/* CLIMATE */
+
+function climate(){
+
+temp=1.2+(co2/200)
 
 }
 
-/* TRANSPORT EMISSIONS */
+/* ECONOMY */
 
-function spawnCars(){
+function updateEconomy(){
 
-if(Math.random()<0.3){
-
-cars.push({
-x:0,
-y:180,
-speed:2
-})
-
-}
-
-}
-
-/* UPDATE */
-
-function update(){
-
-spawnIndustryCO2()
-spawnCars()
-
-/* MOVE CO2 */
-
-co2.forEach(p=>{
-
-p.y+=p.speed
-
-})
-
-/* MOVE CARS */
-
-cars.forEach(c=>{
-
-c.x+=c.speed
-
-if(c.x>900){
-
-co2.push({
-x:c.x,
-y:c.y,
-speed:1
-})
-
-}
-
-})
-
-/* ABSORB CO2 */
-
-towers.forEach(t=>{
-
-co2=co2.filter(p=>{
-
-let tx=t.c*cell+20
-let ty=t.r*cell+20
-
-let d=Math.hypot(p.x-tx,p.y-ty)
-
-if(d<30){
-
-if(t.type==="forest") return false
-if(t.type==="capture") return false
-
-}
-
-return true
-
-})
-
-})
-
-/* REACH ATMOSPHERE */
-
-co2.forEach(p=>{
-
-if(p.y>480){
-
-temp+=0.015
-
-}
-
-})
-
-/* SEA LEVEL */
-
-sea+=temp*0.001
-
-/* SCORE */
-
-score+=1
-
-/* DISASTER */
-
-disasterTimer++
-
-if(disasterTimer>600){
-
-disasterTimer=0
-
-let type=Math.random()
-
-if(type<0.5){
-
-temp+=0.1
-alert("🔥 Heatwave!")
-
-}else{
-
-sea+=5
-alert("🌪 Coastal Storm!")
-
-}
-
-}
+economy+=co2*0.02
 
 }
 
@@ -269,118 +141,59 @@ alert("🌪 Coastal Storm!")
 
 function draw(){
 
-ctx.clearRect(0,0,900,520)
+ctx.clearRect(0,0,600,600)
 
-/* MAP */
+for(let r=0;r<grid;r++){
+for(let c=0;c<grid;c++){
 
-for(let r=0;r<rows;r++){
-for(let c=0;c<cols;c++){
+let type=map[r][c]
 
-let zone=grid[r][c]
+if(type==="empty") ctx.fillStyle="#333"
+if(type==="park") ctx.fillStyle="green"
+if(type==="solar") ctx.fillStyle="yellow"
+if(type==="housing") ctx.fillStyle="#4da6ff"
+if(type==="industry") ctx.fillStyle="#666"
+if(type==="transit") ctx.fillStyle="purple"
 
-if(zone==="industry") ctx.fillStyle="#555"
-if(zone==="urban") ctx.fillStyle="#3a6ea5"
-if(zone==="green") ctx.fillStyle="#2ecc71"
-if(zone==="coastal") ctx.fillStyle="#d9c76e"
-
-ctx.fillRect(c*cell,r*cell,cell,cell)
-
-}
+ctx.fillRect(c*cell,r*cell,cell-1,cell-1)
 
 }
-
-/* FLOOD */
-
-if(sea>15){
-
-ctx.fillStyle="rgba(0,100,255,0.5)"
-ctx.fillRect(0,440,900,80)
-
 }
-
-/* FACTORY SMOKE */
-
-ctx.fillStyle="gray"
-
-for(let c=0;c<cols;c++){
-
-if(grid[0][c]==="industry"){
-
-ctx.beginPath()
-ctx.arc(c*cell+20,15,5,0,Math.PI*2)
-ctx.fill()
-
-}
-
-}
-
-/* CO2 */
-
-co2.forEach(p=>{
-
-ctx.beginPath()
-ctx.arc(p.x,p.y,4,0,Math.PI*2)
-ctx.fillStyle="orange"
-ctx.fill()
-
-})
-
-/* CARS */
-
-cars.forEach(c=>{
-
-ctx.fillStyle="white"
-ctx.fillRect(c.x,c.y,15,8)
-
-})
-
-/* TOWERS */
-
-towers.forEach(t=>{
-
-let x=t.c*cell+20
-let y=t.r*cell+20
-
-if(t.type==="forest") ctx.fillStyle="darkgreen"
-if(t.type==="solar") ctx.fillStyle="yellow"
-if(t.type==="capture") ctx.fillStyle="cyan"
-
-ctx.beginPath()
-ctx.arc(x,y,10,0,Math.PI*2)
-ctx.fill()
-
-})
 
 }
 
 /* LOOP */
 
-function gameLoop(){
+function loop(){
 
-update()
+calculate()
+
+climate()
+
+updateEconomy()
 
 draw()
 
-year+=0.02
+year+=0.01
 
 document.getElementById("year").innerText=Math.floor(year)
 document.getElementById("temp").innerText=temp.toFixed(2)
-document.getElementById("sea").innerText=sea.toFixed(1)
-document.getElementById("score").innerText=score
+document.getElementById("eco").innerText=Math.floor(economy)
+document.getElementById("co2").innerText=Math.floor(co2)
 
-if(temp>2.2){
+if(temp>2){
 
-alert("Climate Collapse!")
+alert("Climate Disaster!")
 
 location.reload()
 
 }
 
-requestAnimationFrame(gameLoop)
+requestAnimationFrame(loop)
 
 }
 
-gameLoop()
+loop()
 
 </script>
 
