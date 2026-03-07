@@ -3,17 +3,20 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
 <title>CarbonFlow Climate Simulator</title>
 
 <style>
 
 body{
-font-family:Segoe UI;
-background:#0f1720;
+font-family:Segoe UI,Arial;
+background:#0b1320;
 color:white;
 text-align:center;
 margin:0;
+}
+
+h1{
+margin-top:10px;
 }
 
 .wrapper{
@@ -25,18 +28,18 @@ margin-top:10px;
 }
 
 .panel{
-background:#1b2635;
+background:#162033;
 padding:15px;
-border-radius:10px;
+border-radius:12px;
 width:320px;
-box-shadow:0 0 15px rgba(0,0,0,0.4);
+box-shadow:0 0 20px rgba(0,0,0,0.5);
 text-align:left;
 }
 
 canvas{
-background:#111;
-border-radius:10px;
-border:2px solid #333;
+background:#0b1320;
+border-radius:12px;
+border:1px solid #23304a;
 }
 
 .slider{
@@ -48,33 +51,41 @@ margin-top:6px;
 font-size:14px;
 }
 
-.target{
-margin-top:10px;
-font-size:13px;
-color:#ddd;
+.gauge{
+width:200px;
+height:20px;
+background:#333;
+border-radius:10px;
+overflow:hidden;
 }
 
-.success{
-color:#2ecc71;
-font-weight:bold;
+.gaugeFill{
+height:100%;
+background:#2ecc71;
+width:0%;
 }
 
-.fail{
-color:#e74c3c;
-font-weight:bold;
+.budgetBar{
+height:15px;
+background:#27ae60;
+border-radius:10px;
 }
+
+.success{color:#2ecc71;font-weight:bold}
+.fail{color:#ff4d4d;font-weight:bold}
 
 </style>
+
 </head>
 
 <body>
 
 <h1>CarbonFlow</h1>
-<p>Climate System Simulator</p>
+<p>Climate Policy Simulator</p>
 
 <div class="wrapper">
 
-<canvas id="flowCanvas" width="650" height="420"></canvas>
+<canvas id="canvas" width="700" height="420"></canvas>
 
 <div class="panel">
 
@@ -92,23 +103,31 @@ Industry Efficiency
 Forest Restoration
 <input type="range" min="0" max="100" value="20" class="slider" id="forest">
 
-<h3>Climate System</h3>
+<h3>Temperature</h3>
+
+<div class="gauge">
+<div id="tempGauge" class="gaugeFill"></div>
+</div>
+
+<div class="metric">
+<span id="temp">1.2</span> °C
+</div>
+
+<h3>Carbon Budget</h3>
+
+<div style="background:#333;border-radius:10px;">
+<div id="budgetBar" class="budgetBar" style="width:100%"></div>
+</div>
+
+<div class="metric">
+<span id="budget">500</span> Gt remaining
+</div>
+
+<h3>System Metrics</h3>
 
 <div class="metric">Year: <span id="year">2025</span></div>
-<div class="metric">Atmospheric CO₂: <span id="co2">420</span> ppm</div>
-<div class="metric">Temperature Increase: <span id="temp">1.2</span> °C</div>
-<div class="metric">Carbon Budget: <span id="budget">500</span> Gt</div>
-<div class="metric">Net Emissions: <span id="net">0</span> Gt/yr</div>
-
-<div class="target">
-
-<h3>Targets</h3>
-
-• Reach **Net-Zero before 2050**  
-• Keep **Temperature < 1.5°C**  
-• Keep **Carbon Budget > 0**
-
-</div>
+<div class="metric">CO₂: <span id="co2">420</span> ppm</div>
+<div class="metric">Net Emissions: <span id="net">0</span></div>
 
 <div id="status"></div>
 
@@ -120,52 +139,59 @@ Forest Restoration
 
 <script>
 
-const canvas=document.getElementById("flowCanvas")
+const canvas=document.getElementById("canvas")
 const ctx=canvas.getContext("2d")
 
 let particles=[]
 
 const nodes={
-energy:[120,210],
+energy:[120,220],
 transport:[120,340],
 industry:[120,80],
-forest:[540,210],
-atmosphere:[330,210]
+forest:[580,220],
+atmosphere:[360,220]
 }
 
 let year=2025
 let co2=420
 let carbonBudget=500
 
-/* DRAW NODES */
+function drawNode(name,x,y,color){
 
-function drawNode(name,x,y){
+let g=ctx.createRadialGradient(x,y,10,x,y,40)
+g.addColorStop(0,color)
+g.addColorStop(1,"#000")
 
-ctx.fillStyle="#3498db"
-
-if(name=="Atmosphere") ctx.fillStyle="#e74c3c"
-if(name=="Forest") ctx.fillStyle="#2ecc71"
-
+ctx.fillStyle=g
 ctx.beginPath()
-ctx.arc(x,y,35,0,Math.PI*2)
+ctx.arc(x,y,40,0,Math.PI*2)
 ctx.fill()
 
 ctx.fillStyle="white"
-ctx.fillText(name,x-30,y+50)
+ctx.font="14px Arial"
+ctx.fillText(name,x-30,y+60)
 
 }
 
-/* PARTICLES */
+function getBezierPoint(t,p0,p1,p2){
 
-function createParticles(x1,y1,x2,y2,count){
+let x=(1-t)*(1-t)*p0[0]+2*(1-t)*t*p1[0]+t*t*p2[0]
+let y=(1-t)*(1-t)*p0[1]+2*(1-t)*t*p1[1]+t*t*p2[1]
+
+return [x,y]
+
+}
+
+function spawnParticles(start,end,control,count){
 
 for(let i=0;i<count;i++){
 
 particles.push({
-x:x1,
-y:y1,
-vx:(x2-x1)/50,
-vy:(y2-y1)/50
+t:0,
+speed:0.01+Math.random()*0.01,
+start:start,
+end:end,
+control:control
 })
 
 }
@@ -175,11 +201,10 @@ vy:(y2-y1)/50
 function updateParticles(){
 
 particles.forEach(p=>{
-p.x+=p.vx
-p.y+=p.vy
+p.t+=p.speed
 })
 
-particles=particles.filter(p=>p.x<700 && p.y<500)
+particles=particles.filter(p=>p.t<1)
 
 }
 
@@ -188,14 +213,16 @@ function drawParticles(){
 ctx.fillStyle="orange"
 
 particles.forEach(p=>{
+
+let pos=getBezierPoint(p.t,p.start,p.control,p.end)
+
 ctx.beginPath()
-ctx.arc(p.x,p.y,2,0,Math.PI*2)
+ctx.arc(pos[0],pos[1],3,0,Math.PI*2)
 ctx.fill()
+
 })
 
 }
-
-/* CALCULATE EMISSIONS */
 
 function calculate(){
 
@@ -216,14 +243,12 @@ document.getElementById("net").innerText=net.toFixed(2)
 
 simulate(net)
 
-createParticles(...nodes.energy,...nodes.atmosphere,energyE)
-createParticles(...nodes.transport,...nodes.atmosphere,transportE)
-createParticles(...nodes.industry,...nodes.atmosphere,industryE)
-createParticles(...nodes.atmosphere,...nodes.forest,forestSink)
+spawnParticles(nodes.energy,nodes.atmosphere,[240,160],energyE)
+spawnParticles(nodes.transport,nodes.atmosphere,[240,300],transportE)
+spawnParticles(nodes.industry,nodes.atmosphere,[240,120],industryE)
+spawnParticles(nodes.atmosphere,nodes.forest,[460,220],forestSink)
 
 }
-
-/* SIMULATION */
 
 function simulate(net){
 
@@ -238,41 +263,41 @@ let temp=2.5*Math.log(co2/280)
 document.getElementById("year").innerText=year
 document.getElementById("co2").innerText=co2.toFixed(1)
 document.getElementById("temp").innerText=temp.toFixed(2)
+
+let gauge=Math.min(temp/2,1)*100
+document.getElementById("tempGauge").style.width=gauge+"%"
+
+let budgetPercent=Math.max(carbonBudget/500,0)*100
+document.getElementById("budgetBar").style.width=budgetPercent+"%"
+
 document.getElementById("budget").innerText=Math.max(0,carbonBudget).toFixed(0)
 
 checkTargets(temp,net)
 
 }
 
-/* TARGET CHECK */
-
 function checkTargets(temp,net){
 
 let status=document.getElementById("status")
 
 if(net<=0 && year<=2050 && temp<1.5){
-
-status.innerHTML="<p class='success'>SUCCESS: Net-Zero Achieved!</p>"
-
-}else if(year>2100 || carbonBudget<=0 || temp>2){
-
+status.innerHTML="<p class='success'>SUCCESS: Net-Zero Achieved</p>"
+}
+else if(temp>2 || carbonBudget<=0){
 status.innerHTML="<p class='fail'>FAIL: Climate Targets Missed</p>"
-
 }
 
 }
-
-/* DRAW */
 
 function draw(){
 
 ctx.clearRect(0,0,canvas.width,canvas.height)
 
-drawNode("Energy",...nodes.energy)
-drawNode("Transport",...nodes.transport)
-drawNode("Industry",...nodes.industry)
-drawNode("Forest",...nodes.forest)
-drawNode("Atmosphere",...nodes.atmosphere)
+drawNode("Energy",...nodes.energy,"#3498db")
+drawNode("Transport",...nodes.transport,"#3498db")
+drawNode("Industry",...nodes.industry,"#3498db")
+drawNode("Forest",...nodes.forest,"#2ecc71")
+drawNode("Atmosphere",...nodes.atmosphere,"#e74c3c")
 
 updateParticles()
 drawParticles()
@@ -280,8 +305,6 @@ drawParticles()
 requestAnimationFrame(draw)
 
 }
-
-/* RESET */
 
 function resetGame(){
 
@@ -292,13 +315,11 @@ particles=[]
 
 }
 
-/* EVENTS */
-
 document.querySelectorAll("input").forEach(el=>{
 el.addEventListener("input",calculate)
 })
 
-setInterval(calculate,1000)
+setInterval(calculate,1200)
 
 draw()
 
