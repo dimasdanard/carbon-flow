@@ -3,7 +3,7 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ecosystem Particle Simulator</title>
+<title>Ecosystem Particle Simulation</title>
 
 <style>
 
@@ -28,7 +28,7 @@ border-radius:10px;
 }
 
 .panel{
-width:200px;
+width:220px;
 background:#1c2338;
 padding:10px;
 border-radius:10px;
@@ -43,9 +43,22 @@ border-radius:6px;
 cursor:pointer;
 }
 
-.stat{
+.legend{
+text-align:left;
 font-size:13px;
-margin-top:5px;
+margin-top:10px;
+}
+
+.legend div{
+display:flex;
+align-items:center;
+margin-bottom:4px;
+}
+
+.box{
+width:14px;
+height:14px;
+margin-right:6px;
 }
 
 </style>
@@ -71,16 +84,22 @@ margin-top:5px;
 <button onclick="pause()">Pause</button>
 <button onclick="reset()">Reset</button>
 
-<div class="stat">Trees: <span id="tree">0</span></div>
-<div class="stat">Water: <span id="water">0</span></div>
-<div class="stat">Population: <span id="pop">0</span></div>
-<div class="stat">Industry: <span id="ind">0</span></div>
-<div class="stat">Economy: <span id="eco">0</span></div>
-<div class="stat">Pollution: <span id="pol">0</span></div>
+<div class="legend">
+
+<b>Legend</b>
+
+<div><div class="box" style="background:green"></div>Tree</div>
+<div><div class="box" style="background:blue"></div>Water</div>
+<div><div class="box" style="background:white"></div>Population</div>
+<div><div class="box" style="background:gray"></div>Industry</div>
+<div><div class="box" style="background:gold"></div>Economy</div>
+<div><div class="box" style="background:red"></div>Pollution</div>
 
 </div>
 
-<canvas id="world" width="700" height="500"></canvas>
+</div>
+
+<canvas id="world" width="750" height="520"></canvas>
 
 </div>
 
@@ -101,16 +120,19 @@ economy:"gold",
 pollution:"red"
 }
 
+/* PARTICLE CLASS */
+
 class Particle{
 
 constructor(type){
 
 this.type=type
-this.x=Math.random()*700
-this.y=Math.random()*500
 
-this.vx=(Math.random()-0.5)*1.5
-this.vy=(Math.random()-0.5)*1.5
+this.x=Math.random()*750
+this.y=Math.random()*520
+
+this.vx=(Math.random()-0.5)*2
+this.vy=(Math.random()-0.5)*2
 
 }
 
@@ -119,8 +141,8 @@ move(){
 this.x+=this.vx
 this.y+=this.vy
 
-if(this.x<0||this.x>700) this.vx*=-1
-if(this.y<0||this.y>500) this.vy*=-1
+if(this.x<0||this.x>750) this.vx*=-1
+if(this.y<0||this.y>520) this.vy*=-1
 
 }
 
@@ -135,6 +157,26 @@ ctx.fill()
 
 }
 
+/* INITIAL PARTICLES */
+
+function init(){
+
+const types=["tree","water","population","industry","economy","pollution"]
+
+types.forEach(type=>{
+
+for(let i=0;i<25;i++){
+
+particles.push(new Particle(type))
+
+}
+
+})
+
+}
+
+init()
+
 /* ADD PARTICLES */
 
 function addParticles(type){
@@ -147,60 +189,58 @@ particles.push(new Particle(type))
 
 }
 
-/* INITIAL */
-
-function init(){
-
-const types=["tree","water","population","industry","economy","pollution"]
-
-types.forEach(t=>{
-for(let i=0;i<50;i++){
-particles.push(new Particle(t))
-}
-})
-
-}
-
-init()
-
-/* INTERACTIONS */
+/* INTERACTION RULES */
 
 function interact(a,b){
 
+/* tree + population */
+
 if(a.type==="tree" && b.type==="population"){
-a.type="empty"
-b.type="population"
+a.type="dead"
+particles.push(new Particle("population"))
 }
+
+/* pollution + tree */
 
 if(a.type==="pollution" && b.type==="tree"){
-a.type="empty"
+a.type="dead"
 }
+
+/* water + tree */
 
 if(a.type==="water" && b.type==="tree"){
-b.type="tree"
+particles.push(new Particle("tree"))
 }
 
+/* water + pollution */
+
 if(a.type==="water" && b.type==="pollution"){
-a.type="empty"
-b.type="pollution"
+a.type="dead"
+particles.push(new Particle("pollution"))
 }
+
+/* industry + population */
 
 if(a.type==="industry" && b.type==="population"){
 particles.push(new Particle("economy"))
 particles.push(new Particle("pollution"))
 }
 
+/* population + economy */
+
 if(a.type==="population" && b.type==="economy"){
 particles.push(new Particle("population"))
 }
 
+/* pollution + population */
+
 if(a.type==="pollution" && b.type==="population"){
-b.type="empty"
+b.type="dead"
 }
 
 }
 
-/* COLLISION */
+/* COLLISIONS */
 
 function collisions(){
 
@@ -223,31 +263,7 @@ interact(a,b)
 
 }
 
-particles=particles.filter(p=>p.type!=="empty")
-
-}
-
-/* UPDATE STATS */
-
-function stats(){
-
-let count={
-tree:0,
-water:0,
-population:0,
-industry:0,
-economy:0,
-pollution:0
-}
-
-particles.forEach(p=>count[p.type]++)
-
-document.getElementById("tree").innerText=count.tree
-document.getElementById("water").innerText=count.water
-document.getElementById("pop").innerText=count.population
-document.getElementById("ind").innerText=count.industry
-document.getElementById("eco").innerText=count.economy
-document.getElementById("pol").innerText=count.pollution
+particles=particles.filter(p=>p.type!=="dead")
 
 }
 
@@ -255,7 +271,7 @@ document.getElementById("pol").innerText=count.pollution
 
 function loop(){
 
-ctx.clearRect(0,0,700,500)
+ctx.clearRect(0,0,750,520)
 
 particles.forEach(p=>{
 p.move()
@@ -263,8 +279,6 @@ p.draw()
 })
 
 collisions()
-
-stats()
 
 if(running) requestAnimationFrame(loop)
 
