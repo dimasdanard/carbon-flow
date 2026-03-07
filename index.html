@@ -8,7 +8,7 @@
 <style>
 
 body{
-font-family:Segoe UI,Arial;
+font-family:Segoe UI;
 background:#101522;
 color:white;
 margin:0;
@@ -30,6 +30,7 @@ margin-top:10px;
 canvas{
 background:#1b2233;
 border-radius:8px;
+cursor:pointer;
 }
 
 .panel{
@@ -46,6 +47,12 @@ margin-top:6px;
 border:none;
 border-radius:6px;
 cursor:pointer;
+background:#2a3248;
+color:white;
+}
+
+button.active{
+background:#4da6ff;
 }
 
 .stat{
@@ -69,11 +76,11 @@ font-size:14px;
 
 <h3>Build</h3>
 
-<button onclick="tool='park'">🌳 Park</button>
-<button onclick="tool='solar'">☀ Solar</button>
-<button onclick="tool='housing'">🏢 Housing</button>
-<button onclick="tool='industry'">🏭 Industry</button>
-<button onclick="tool='transit'">🚇 Transit</button>
+<button id="parkBtn">🌳 Park</button>
+<button id="solarBtn">☀ Solar</button>
+<button id="housingBtn">🏢 Housing</button>
+<button id="industryBtn">🏭 Industry</button>
+<button id="transitBtn">🚇 Transit</button>
 
 <h3>Stats</h3>
 
@@ -96,7 +103,6 @@ const size=20
 const cell=30
 
 let grid=[]
-
 let tool="park"
 
 let year=2025
@@ -119,7 +125,37 @@ grid[r][c]="empty"
 
 }
 
-/* CLICK BUILD */
+/* TOOL BUTTONS */
+
+const buttons={
+park:document.getElementById("parkBtn"),
+solar:document.getElementById("solarBtn"),
+housing:document.getElementById("housingBtn"),
+industry:document.getElementById("industryBtn"),
+transit:document.getElementById("transitBtn")
+}
+
+function setTool(t){
+
+tool=t
+
+for(let b in buttons){
+buttons[b].classList.remove("active")
+}
+
+buttons[t].classList.add("active")
+
+}
+
+buttons.park.onclick=()=>setTool("park")
+buttons.solar.onclick=()=>setTool("solar")
+buttons.housing.onclick=()=>setTool("housing")
+buttons.industry.onclick=()=>setTool("industry")
+buttons.transit.onclick=()=>setTool("transit")
+
+setTool("park")
+
+/* BUILD */
 
 canvas.addEventListener("click",e=>{
 
@@ -127,6 +163,10 @@ let rect=canvas.getBoundingClientRect()
 
 let x=Math.floor((e.clientX-rect.left)/cell)
 let y=Math.floor((e.clientY-rect.top)/cell)
+
+if(x<0||y<0||x>=size||y>=size) return
+
+if(grid[y][x]!=="empty") return
 
 let cost=50
 
