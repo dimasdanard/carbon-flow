@@ -3,7 +3,7 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CarbonFlow Climate Simulator</title>
+<title>Carbon Crisis</title>
 
 <style>
 
@@ -19,7 +19,7 @@ h1{
 margin-top:10px;
 }
 
-.wrapper{
+.container{
 display:flex;
 flex-wrap:wrap;
 justify-content:center;
@@ -30,49 +30,38 @@ margin-top:10px;
 .panel{
 background:#162033;
 padding:15px;
-border-radius:12px;
-width:320px;
+border-radius:10px;
+width:300px;
 box-shadow:0 0 20px rgba(0,0,0,0.5);
-text-align:left;
 }
 
-canvas{
-background:#0b1320;
-border-radius:12px;
-border:1px solid #23304a;
-}
-
-.slider{
+button{
 width:100%;
+padding:10px;
+margin-top:8px;
+border:none;
+border-radius:6px;
+cursor:pointer;
+font-weight:bold;
+}
+
+.policy{
+background:#2ecc71;
+color:black;
+}
+
+.bad{
+background:#e74c3c;
 }
 
 .metric{
 margin-top:6px;
-font-size:14px;
 }
 
-.gauge{
-width:200px;
-height:20px;
-background:#333;
-border-radius:10px;
-overflow:hidden;
+.earth{
+font-size:120px;
+transition:0.5s;
 }
-
-.gaugeFill{
-height:100%;
-background:#2ecc71;
-width:0%;
-}
-
-.budgetBar{
-height:15px;
-background:#27ae60;
-border-radius:10px;
-}
-
-.success{color:#2ecc71;font-weight:bold}
-.fail{color:#ff4d4d;font-weight:bold}
 
 </style>
 
@@ -80,248 +69,183 @@ border-radius:10px;
 
 <body>
 
-<h1>CarbonFlow</h1>
-<p>Climate Policy Simulator</p>
+<h1>Carbon Crisis</h1>
+<p>You are the Global Climate Minister</p>
 
-<div class="wrapper">
+<div class="earth" id="earth">🌍</div>
 
-<canvas id="canvas" width="700" height="420"></canvas>
+<div class="container">
 
 <div class="panel">
 
-<h3>Climate Policies</h3>
-
-Renewable Energy
-<input type="range" min="0" max="100" value="20" class="slider" id="renew">
-
-Electric Vehicles
-<input type="range" min="0" max="100" value="10" class="slider" id="ev">
-
-Industry Efficiency
-<input type="range" min="0" max="100" value="10" class="slider" id="industry">
-
-Forest Restoration
-<input type="range" min="0" max="100" value="20" class="slider" id="forest">
-
-<h3>Temperature</h3>
-
-<div class="gauge">
-<div id="tempGauge" class="gaugeFill"></div>
-</div>
-
-<div class="metric">
-<span id="temp">1.2</span> °C
-</div>
-
-<h3>Carbon Budget</h3>
-
-<div style="background:#333;border-radius:10px;">
-<div id="budgetBar" class="budgetBar" style="width:100%"></div>
-</div>
-
-<div class="metric">
-<span id="budget">500</span> Gt remaining
-</div>
-
-<h3>System Metrics</h3>
+<h3>World Status</h3>
 
 <div class="metric">Year: <span id="year">2025</span></div>
 <div class="metric">CO₂: <span id="co2">420</span> ppm</div>
-<div class="metric">Net Emissions: <span id="net">0</span></div>
+<div class="metric">Temperature: <span id="temp">1.2</span> °C</div>
+<div class="metric">Global Economy: <span id="gdp">100</span></div>
 
-<div id="status"></div>
+<h3>Climate Event</h3>
 
-<button onclick="resetGame()">Reset</button>
+<div id="event">No major events</div>
+
+<button onclick="nextTurn()">Next 5 Years</button>
+
+</div>
+
+
+<div class="panel">
+
+<h3>Choose Policies</h3>
+
+<button class="policy" onclick="policySolar()">
+Expand Solar Power<br>
+(-4 emissions, -2 economy)
+</button>
+
+<button class="policy" onclick="policyEV()">
+Electric Vehicle Transition<br>
+(-3 emissions, -1 economy)
+</button>
+
+<button class="policy" onclick="policyForest()">
+Forest Restoration<br>
+(-2 emissions, +1 biodiversity)
+</button>
+
+<button class="bad" onclick="policyCoal()">
+Expand Coal Industry<br>
+(+6 emissions, +4 economy)
+</button>
 
 </div>
 
 </div>
+
 
 <script>
 
-const canvas=document.getElementById("canvas")
-const ctx=canvas.getContext("2d")
-
-let particles=[]
-
-const nodes={
-energy:[120,220],
-transport:[120,340],
-industry:[120,80],
-forest:[580,220],
-atmosphere:[360,220]
-}
-
 let year=2025
 let co2=420
-let carbonBudget=500
+let temp=1.2
+let gdp=100
 
-function drawNode(name,x,y,color){
+let emissions=10
 
-let g=ctx.createRadialGradient(x,y,10,x,y,40)
-g.addColorStop(0,color)
-g.addColorStop(1,"#000")
-
-ctx.fillStyle=g
-ctx.beginPath()
-ctx.arc(x,y,40,0,Math.PI*2)
-ctx.fill()
-
-ctx.fillStyle="white"
-ctx.font="14px Arial"
-ctx.fillText(name,x-30,y+60)
-
-}
-
-function getBezierPoint(t,p0,p1,p2){
-
-let x=(1-t)*(1-t)*p0[0]+2*(1-t)*t*p1[0]+t*t*p2[0]
-let y=(1-t)*(1-t)*p0[1]+2*(1-t)*t*p1[1]+t*t*p2[1]
-
-return [x,y]
-
-}
-
-function spawnParticles(start,end,control,count){
-
-for(let i=0;i<count;i++){
-
-particles.push({
-t:0,
-speed:0.01+Math.random()*0.01,
-start:start,
-end:end,
-control:control
-})
-
-}
-
-}
-
-function updateParticles(){
-
-particles.forEach(p=>{
-p.t+=p.speed
-})
-
-particles=particles.filter(p=>p.t<1)
-
-}
-
-function drawParticles(){
-
-ctx.fillStyle="orange"
-
-particles.forEach(p=>{
-
-let pos=getBezierPoint(p.t,p.start,p.control,p.end)
-
-ctx.beginPath()
-ctx.arc(pos[0],pos[1],3,0,Math.PI*2)
-ctx.fill()
-
-})
-
-}
-
-function calculate(){
-
-let renew=document.getElementById("renew").value/100
-let ev=document.getElementById("ev").value/100
-let ind=document.getElementById("industry").value/100
-let forest=document.getElementById("forest").value/100
-
-let energyE=12*(1-renew)
-let transportE=8*(1-ev)
-let industryE=10*(1-ind)
-
-let forestSink=6*forest
-
-let net=energyE+transportE+industryE-forestSink
-
-document.getElementById("net").innerText=net.toFixed(2)
-
-simulate(net)
-
-spawnParticles(nodes.energy,nodes.atmosphere,[240,160],energyE)
-spawnParticles(nodes.transport,nodes.atmosphere,[240,300],transportE)
-spawnParticles(nodes.industry,nodes.atmosphere,[240,120],industryE)
-spawnParticles(nodes.atmosphere,nodes.forest,[460,220],forestSink)
-
-}
-
-function simulate(net){
-
-year++
-
-co2+=net*0.4
-
-carbonBudget-=Math.max(net,0)
-
-let temp=2.5*Math.log(co2/280)
+function updateUI(){
 
 document.getElementById("year").innerText=year
 document.getElementById("co2").innerText=co2.toFixed(1)
 document.getElementById("temp").innerText=temp.toFixed(2)
+document.getElementById("gdp").innerText=gdp
 
-let gauge=Math.min(temp/2,1)*100
-document.getElementById("tempGauge").style.width=gauge+"%"
+let earth=document.getElementById("earth")
 
-let budgetPercent=Math.max(carbonBudget/500,0)*100
-document.getElementById("budgetBar").style.width=budgetPercent+"%"
+if(temp<1.5){
+earth.innerHTML="🌍"
+}
+else if(temp<2){
+earth.innerHTML="🌎"
+}
+else{
+earth.innerHTML="🔥"
+}
 
-document.getElementById("budget").innerText=Math.max(0,carbonBudget).toFixed(0)
-
-checkTargets(temp,net)
+checkGame()
 
 }
 
-function checkTargets(temp,net){
+function nextTurn(){
 
-let status=document.getElementById("status")
+year+=5
 
-if(net<=0 && year<=2050 && temp<1.5){
-status.innerHTML="<p class='success'>SUCCESS: Net-Zero Achieved</p>"
-}
-else if(temp>2 || carbonBudget<=0){
-status.innerHTML="<p class='fail'>FAIL: Climate Targets Missed</p>"
-}
+co2+=emissions*0.6
 
-}
+temp=2.5*Math.log(co2/280)
 
-function draw(){
+randomEvent()
 
-ctx.clearRect(0,0,canvas.width,canvas.height)
-
-drawNode("Energy",...nodes.energy,"#3498db")
-drawNode("Transport",...nodes.transport,"#3498db")
-drawNode("Industry",...nodes.industry,"#3498db")
-drawNode("Forest",...nodes.forest,"#2ecc71")
-drawNode("Atmosphere",...nodes.atmosphere,"#e74c3c")
-
-updateParticles()
-drawParticles()
-
-requestAnimationFrame(draw)
+updateUI()
 
 }
 
-function resetGame(){
+function randomEvent(){
 
-year=2025
-co2=420
-carbonBudget=500
-particles=[]
+let events=[
+"Wildfires increase emissions",
+"Green technology breakthrough",
+"Climate protests demand action",
+"Major hurricane damages economy",
+"No major events"
+]
+
+let e=events[Math.floor(Math.random()*events.length)]
+
+document.getElementById("event").innerText=e
+
+if(e==="Wildfires increase emissions") emissions+=2
+if(e==="Green technology breakthrough") emissions-=2
+if(e==="Major hurricane damages economy") gdp-=5
 
 }
 
-document.querySelectorAll("input").forEach(el=>{
-el.addEventListener("input",calculate)
-})
+function policySolar(){
 
-setInterval(calculate,1200)
+emissions-=4
+gdp-=2
 
-draw()
+}
+
+function policyEV(){
+
+emissions-=3
+gdp-=1
+
+}
+
+function policyForest(){
+
+emissions-=2
+gdp+=1
+
+}
+
+function policyCoal(){
+
+emissions+=6
+gdp+=4
+
+}
+
+function checkGame(){
+
+if(temp>2.5){
+
+alert("Climate Collapse 🌍🔥")
+
+location.reload()
+
+}
+
+if(gdp<=50){
+
+alert("Economic Collapse 💸")
+
+location.reload()
+
+}
+
+if(year>=2100 && temp<1.5){
+
+alert("Victory! You Stabilized the Climate 🌱")
+
+location.reload()
+
+}
+
+}
+
+updateUI()
 
 </script>
 
