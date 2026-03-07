@@ -3,7 +3,7 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Carbon Defense</title>
+<title>Carbon City Defense</title>
 
 <style>
 
@@ -16,12 +16,7 @@ margin:0;
 }
 
 canvas{
-background:#081020;
 border:2px solid #23304a;
-margin-top:10px;
-}
-
-.panel{
 margin-top:10px;
 }
 
@@ -39,11 +34,11 @@ cursor:pointer;
 
 <body>
 
-<h1>Carbon Defense</h1>
+<h1>Carbon City Defense</h1>
 
-<canvas id="game" width="700" height="500"></canvas>
+<canvas id="game" width="800" height="500"></canvas>
 
-<div class="panel">
+<div>
 
 <button onclick="setTool('forest')">🌳 Forest</button>
 <button onclick="setTool('solar')">☀ Solar</button>
@@ -54,7 +49,8 @@ cursor:pointer;
 <div>
 
 Year: <span id="year">2025</span> |
-Temperature: <span id="temp">1.2</span> °C
+Temperature: <span id="temp">1.2</span> °C |
+Sea Level: <span id="sea">0</span> cm
 
 </div>
 
@@ -63,17 +59,45 @@ Temperature: <span id="temp">1.2</span> °C
 const canvas=document.getElementById("game")
 const ctx=canvas.getContext("2d")
 
-let tool="forest"
+const cell=40
+const rows=12
+const cols=20
+
+let grid=[]
 
 let towers=[]
 let co2=[]
 
+let tool="forest"
+
 let year=2025
 let temp=1.2
+let sea=0
+
+/* CREATE MAP */
+
+for(let r=0;r<rows;r++){
+
+grid[r]=[]
+
+for(let c=0;c<cols;c++){
+
+if(r<3) grid[r][c]="industry"
+else if(r<7) grid[r][c]="urban"
+else if(r<10) grid[r][c]="green"
+else grid[r][c]="coastal"
+
+}
+
+}
+
+/* TOOL */
 
 function setTool(t){
 tool=t
 }
+
+/* CLICK */
 
 canvas.onclick=function(e){
 
@@ -82,24 +106,37 @@ let rect=canvas.getBoundingClientRect()
 let x=e.clientX-rect.left
 let y=e.clientY-rect.top
 
-towers.push({x,y,type:tool})
+let r=Math.floor(y/cell)
+let c=Math.floor(x/cell)
+
+let zone=grid[r][c]
+
+/* VALIDATION */
+
+if(tool==="forest" && zone!=="green") return
+if(tool==="solar" && zone!=="urban") return
+if(tool==="capture" && zone!=="industry") return
+
+towers.push({r,c,type:tool})
 
 }
 
-/* CO2 SPAWN */
+/* SPAWN EMISSIONS */
 
 function spawnCO2(){
 
-let side=Math.floor(Math.random()*4)
+for(let c=0;c<cols;c++){
 
-let x,y
+if(grid[0][c]==="industry"){
 
-if(side===0){x=0;y=Math.random()*500}
-if(side===1){x=700;y=Math.random()*500}
-if(side===2){x=Math.random()*700;y=0}
-if(side===3){x=Math.random()*700;y=500}
+co2.push({
+x:c*cell+20,
+y:20
+})
 
-co2.push({x,y})
+}
+
+}
 
 }
 
@@ -109,23 +146,22 @@ function update(){
 
 co2.forEach(p=>{
 
-let dx=350-p.x
-let dy=250-p.y
-
-p.x+=dx*0.002
-p.y+=dy*0.002
+p.y+=0.8
 
 })
 
-/* ABSORB CO2 */
+/* ABSORB */
 
 towers.forEach(t=>{
 
 co2=co2.filter(p=>{
 
-let d=Math.hypot(p.x-t.x,p.y-t.y)
+let tx=t.c*cell+20
+let ty=t.r*cell+20
 
-if(d<40){
+let d=Math.hypot(p.x-tx,p.y-ty)
+
+if(d<25){
 
 if(t.type==="forest") return false
 if(t.type==="capture") return false
@@ -138,13 +174,11 @@ return true
 
 })
 
-/* CO2 REACH ATMOSPHERE */
+/* REACH ATMOSPHERE */
 
 co2.forEach(p=>{
 
-let d=Math.hypot(p.x-350,p.y-250)
-
-if(d<20){
+if(p.y>450){
 
 temp+=0.02
 
@@ -152,20 +186,44 @@ temp+=0.02
 
 })
 
+/* SEA LEVEL */
+
+sea+=temp*0.001
+
 }
 
 /* DRAW */
 
 function draw(){
 
-ctx.clearRect(0,0,700,500)
+ctx.clearRect(0,0,800,500)
 
-/* ATMOSPHERE */
+/* MAP */
 
-ctx.beginPath()
-ctx.arc(350,250,40,0,Math.PI*2)
-ctx.fillStyle="red"
-ctx.fill()
+for(let r=0;r<rows;r++){
+for(let c=0;c<cols;c++){
+
+let zone=grid[r][c]
+
+if(zone==="industry") ctx.fillStyle="#555"
+if(zone==="urban") ctx.fillStyle="#3a6ea5"
+if(zone==="green") ctx.fillStyle="#2ecc71"
+if(zone==="coastal") ctx.fillStyle="#d9c76e"
+
+ctx.fillRect(c*cell,r*cell,cell,cell)
+
+}
+
+}
+
+/* FLOOD */
+
+if(sea>10){
+
+ctx.fillStyle="rgba(0,100,255,0.5)"
+ctx.fillRect(0,440,800,60)
+
+}
 
 /* CO2 */
 
@@ -182,19 +240,22 @@ ctx.fill()
 
 towers.forEach(t=>{
 
-if(t.type==="forest") ctx.fillStyle="green"
+let x=t.c*cell+20
+let y=t.r*cell+20
+
+if(t.type==="forest") ctx.fillStyle="darkgreen"
 if(t.type==="solar") ctx.fillStyle="yellow"
 if(t.type==="capture") ctx.fillStyle="cyan"
 
 ctx.beginPath()
-ctx.arc(t.x,t.y,10,0,Math.PI*2)
+ctx.arc(x,y,10,0,Math.PI*2)
 ctx.fill()
 
 })
 
 }
 
-/* GAME LOOP */
+/* LOOP */
 
 function gameLoop(){
 
@@ -209,6 +270,8 @@ year+=0.02
 document.getElementById("year").innerText=Math.floor(year)
 
 document.getElementById("temp").innerText=temp.toFixed(2)
+
+document.getElementById("sea").innerText=sea.toFixed(2)
 
 if(temp>2){
 
