@@ -34,9 +34,9 @@ cursor:pointer;
 
 <body>
 
-<h1>EcoCity Builder</h1>
+<h1>EcoCity Builder: Climate Challenge</h1>
 
-<canvas id="map" width="600" height="600"></canvas>
+<canvas id="map" width="640" height="640"></canvas>
 
 <div>
 
@@ -52,8 +52,10 @@ cursor:pointer;
 
 Year: <span id="year">2025</span> |
 Temp: <span id="temp">1.2</span>°C |
+CO₂: <span id="co2">100</span> |
+Sea: <span id="sea">0</span> |
 Economy: <span id="eco">100</span> |
-CO₂: <span id="co2">100</span>
+Budget: <span id="budget">500</span>
 
 </div>
 
@@ -63,18 +65,21 @@ const canvas=document.getElementById("map")
 const ctx=canvas.getContext("2d")
 
 const grid=20
-const cell=30
+const cell=32
 
 let map=[]
+let cars=[]
 
 let tool="park"
 
 let year=2025
 let temp=1.2
-let economy=100
 let co2=100
+let sea=0
+let economy=100
+let budget=500
 
-/* INIT MAP */
+/* MAP */
 
 for(let r=0;r<grid;r++){
 
@@ -97,11 +102,36 @@ let rect=canvas.getBoundingClientRect()
 let x=Math.floor((e.clientX-rect.left)/cell)
 let y=Math.floor((e.clientY-rect.top)/cell)
 
+let cost=50
+
+if(tool==="solar") cost=80
+if(tool==="industry") cost=120
+
+if(budget<cost) return
+
+budget-=cost
+
 map[y][x]=tool
 
 }
 
-/* EMISSIONS */
+/* TRAFFIC */
+
+function spawnCars(){
+
+if(Math.random()<0.3){
+
+cars.push({
+x:0,
+y:Math.random()*640,
+speed:2
+})
+
+}
+
+}
+
+/* UPDATE */
 
 function calculate(){
 
@@ -110,9 +140,9 @@ co2=0
 map.forEach(row=>{
 row.forEach(cell=>{
 
-if(cell==="industry") co2+=4
-if(cell==="housing") co2+=1
-if(cell==="solar") co2-=2
+if(cell==="industry") co2+=5
+if(cell==="housing") co2+=2
+if(cell==="solar") co2-=3
 if(cell==="park") co2-=1
 if(cell==="transit") co2-=2
 
@@ -121,19 +151,51 @@ if(cell==="transit") co2-=2
 
 }
 
-/* CLIMATE */
-
 function climate(){
 
-temp=1.2+(co2/200)
+temp=1.2+(co2/150)
+
+sea+=temp*0.002
 
 }
 
-/* ECONOMY */
+function economyUpdate(){
 
-function updateEconomy(){
+economy+=map.flat().filter(c=>c==="industry").length*0.05
 
-economy+=co2*0.02
+}
+
+function updateCars(){
+
+cars.forEach(c=>{
+
+c.x+=c.speed
+
+})
+
+cars=cars.filter(c=>c.x<640)
+
+}
+
+/* DISASTER */
+
+function disasters(){
+
+if(temp>1.6 && Math.random()<0.01){
+
+alert("🔥 Heatwave!")
+
+economy-=10
+
+}
+
+if(sea>10 && Math.random()<0.01){
+
+alert("🌊 Coastal Flooding!")
+
+economy-=20
+
+}
 
 }
 
@@ -141,7 +203,7 @@ economy+=co2*0.02
 
 function draw(){
 
-ctx.clearRect(0,0,600,600)
+ctx.clearRect(0,0,640,640)
 
 for(let r=0;r<grid;r++){
 for(let c=0;c<grid;c++){
@@ -160,30 +222,58 @@ ctx.fillRect(c*cell,r*cell,cell-1,cell-1)
 }
 }
 
+/* CARS */
+
+cars.forEach(c=>{
+
+ctx.fillStyle="white"
+ctx.fillRect(c.x,c.y,10,5)
+
+})
+
+/* FLOOD */
+
+if(sea>12){
+
+ctx.fillStyle="rgba(0,100,255,0.4)"
+ctx.fillRect(0,580,640,60)
+
+}
+
 }
 
 /* LOOP */
 
 function loop(){
 
+spawnCars()
+
 calculate()
 
 climate()
 
-updateEconomy()
+economyUpdate()
+
+updateCars()
+
+disasters()
 
 draw()
 
-year+=0.01
+year+=0.02
+
+budget+=0.2
 
 document.getElementById("year").innerText=Math.floor(year)
 document.getElementById("temp").innerText=temp.toFixed(2)
-document.getElementById("eco").innerText=Math.floor(economy)
 document.getElementById("co2").innerText=Math.floor(co2)
+document.getElementById("sea").innerText=sea.toFixed(1)
+document.getElementById("eco").innerText=Math.floor(economy)
+document.getElementById("budget").innerText=Math.floor(budget)
 
 if(temp>2){
 
-alert("Climate Disaster!")
+alert("Climate Collapse!")
 
 location.reload()
 
