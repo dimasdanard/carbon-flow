@@ -19,9 +19,7 @@ flex-direction:column;
 align-items:center;
 }
 
-h2{
-margin-top:10px;
-}
+h2{margin-top:10px;}
 
 .layout{
 display:flex;
@@ -52,23 +50,6 @@ background:#374151;
 color:white;
 }
 
-.legend{
-margin-top:10px;
-font-size:13px;
-}
-
-.legend div{
-display:flex;
-align-items:center;
-margin-bottom:4px;
-}
-
-.box{
-width:14px;
-height:14px;
-margin-right:6px;
-}
-
 .bottom{
 display:flex;
 gap:20px;
@@ -91,20 +72,16 @@ margin-top:15px;
 <button onclick="pause()">Pause</button>
 <button onclick="reset()">Reset</button>
 
-<div class="legend">
+<hr>
 
-<b>Legend</b>
+<button onclick="addParticles('tree')">Add Trees</button>
+<button onclick="addParticles('water')">Add Water</button>
+<button onclick="addParticles('population')">Add Population</button>
+<button onclick="addParticles('industry')">Add Industry</button>
+<button onclick="addParticles('economy')">Add Economy</button>
+<button onclick="addParticles('pollution')">Add Pollution</button>
 
-<div><div class="box" style="background:green"></div>Tree</div>
-<div><div class="box" style="background:blue"></div>Water</div>
-<div><div class="box" style="background:white"></div>Population</div>
-<div><div class="box" style="background:gray"></div>Industry</div>
-<div><div class="box" style="background:gold"></div>Economy</div>
-<div><div class="box" style="background:red"></div>Pollution</div>
-
-</div>
-
-<div id="equilibrium" style="margin-top:8px">
+<div id="equilibrium" style="margin-top:10px">
 Equilibrium: No
 </div>
 
@@ -130,9 +107,9 @@ Equilibrium: No
 
 <script>
 
-/* ============================= */
+/* ======================= */
 /* BASIC SETTINGS */
-/* ============================= */
+/* ======================= */
 
 const canvas=document.getElementById("world")
 const ctx=canvas.getContext("2d")
@@ -151,9 +128,9 @@ economy:"#facc15",
 pollution:"#ef4444"
 }
 
-/* ============================= */
+/* ======================= */
 /* PARTICLE CLASS */
-/* ============================= */
+/* ======================= */
 
 class Particle{
 
@@ -221,17 +198,17 @@ break
 
 }
 
-/* ============================= */
-/* INITIAL POPULATION */
-/* ============================= */
+/* ======================= */
+/* INITIAL PARTICLES */
+/* ======================= */
 
 function init(){
 
 particles=[]
 
-types.forEach(type=>{
+types.forEach(t=>{
 for(let i=0;i<25;i++){
-particles.push(new Particle(type))
+particles.push(new Particle(t))
 }
 })
 
@@ -239,9 +216,17 @@ particles.push(new Particle(type))
 
 init()
 
-/* ============================= */
+function addParticles(type){
+
+for(let i=0;i<10;i++){
+particles.push(new Particle(type))
+}
+
+}
+
+/* ======================= */
 /* INTERACTIONS */
-/* ============================= */
+/* ======================= */
 
 function interact(a,b){
 
@@ -268,9 +253,9 @@ if(Math.random()<0.1)particles.push(new Particle("pollution"))
 
 }
 
-/* ============================= */
+/* ======================= */
 /* COLLISIONS */
-/* ============================= */
+/* ======================= */
 
 function collisions(){
 
@@ -295,9 +280,9 @@ particles=particles.filter(p=>p.type!=="dead")
 
 }
 
-/* ============================= */
+/* ======================= */
 /* STATS */
-/* ============================= */
+/* ======================= */
 
 function stats(){
 
@@ -316,9 +301,9 @@ return count
 
 }
 
-/* ============================= */
-/* MODERN POPULATION GRAPH */
-/* ============================= */
+/* ======================= */
+/* CHARTS */
+/* ======================= */
 
 const popChart=new Chart(
 document.getElementById("popChart"),
@@ -336,34 +321,15 @@ tension:0.35
 }))
 },
 options:{
-responsive:true,
 animation:false,
-plugins:{
-legend:{
-labels:{
-color:"#9ca3af",
-boxWidth:10,
-font:{size:11}
-}
-}
-},
+plugins:{legend:{labels:{color:"#9ca3af"}}},
 scales:{
-x:{
-grid:{color:"rgba(255,255,255,0.03)"},
-ticks:{display:false}
-},
-y:{
-grid:{color:"rgba(255,255,255,0.05)"},
-ticks:{color:"#9ca3af"}
-}
+x:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{display:false}},
+y:{grid:{color:"rgba(255,255,255,0.05)"},ticks:{color:"#9ca3af"}}
 }
 }
 }
 )
-
-/* ============================= */
-/* PHASE DIAGRAM */
-/* ============================= */
 
 const phaseChart=new Chart(
 document.getElementById("phaseChart"),
@@ -373,91 +339,24 @@ data:{
 datasets:[{
 label:"Population vs Pollution",
 data:[],
-backgroundColor:"rgba(255,255,255,0.6)",
+backgroundColor:"white",
 pointRadius:3
 }]
 },
 options:{
 animation:false,
-plugins:{
-legend:{
-labels:{
-color:"#9ca3af",
-font:{size:11}
-}
-}
-},
+plugins:{legend:{labels:{color:"#9ca3af"}}},
 scales:{
-x:{
-title:{display:true,text:"Population",color:"#9ca3af"},
-grid:{color:"rgba(255,255,255,0.05)"},
-ticks:{color:"#9ca3af"}
-},
-y:{
-title:{display:true,text:"Pollution",color:"#9ca3af"},
-grid:{color:"rgba(255,255,255,0.05)"},
-ticks:{color:"#9ca3af"}
-}
+x:{title:{display:true,text:"Population",color:"#9ca3af"},ticks:{color:"#9ca3af"}},
+y:{title:{display:true,text:"Pollution",color:"#9ca3af"},ticks:{color:"#9ca3af"}}
 }
 }
 }
 )
 
-/* ============================= */
-/* EQUILIBRIUM DETECTION */
-/* ============================= */
-
-let history=[]
-
-function checkEquilibrium(count){
-
-history.push(count.population)
-
-if(history.length>50)history.shift()
-
-let max=Math.max(...history)
-let min=Math.min(...history)
-
-if(max-min<5){
-document.getElementById("equilibrium").innerText="Equilibrium: Yes"
-}else{
-document.getElementById("equilibrium").innerText="Equilibrium: No"
-}
-
-}
-
-/* ============================= */
-/* UPDATE CHARTS */
-/* ============================= */
-
-function updateCharts(count){
-
-popChart.data.labels.push("")
-if(popChart.data.labels.length>100)popChart.data.labels.shift()
-
-popChart.data.datasets.forEach((d,i)=>{
-d.data.push(count[types[i]])
-if(d.data.length>100)d.data.shift()
-})
-
-popChart.update()
-
-phaseChart.data.datasets[0].data.push({
-x:count.population,
-y:count.pollution
-})
-
-if(phaseChart.data.datasets[0].data.length>200){
-phaseChart.data.datasets[0].data.shift()
-}
-
-phaseChart.update()
-
-}
-
-/* ============================= */
-/* FOOD WEB NETWORK */
-/* ============================= */
+/* ======================= */
+/* FOOD WEB */
+/* ======================= */
 
 function drawNetwork(){
 
@@ -467,12 +366,12 @@ const nctx=net.getContext("2d")
 nctx.clearRect(0,0,200,200)
 
 const nodes={
-tree:[100,40],
+tree:[100,30],
 water:[30,100],
-population:[100,160],
+population:[100,170],
 industry:[170,100],
-pollution:[50,40],
-economy:[150,40]
+pollution:[60,40],
+economy:[140,40]
 }
 
 for(let k in nodes){
@@ -488,9 +387,57 @@ nctx.fill()
 
 drawNetwork()
 
-/* ============================= */
+/* ======================= */
+/* EQUILIBRIUM */
+/* ======================= */
+
+let history=[]
+
+function checkEquilibrium(count){
+
+history.push(count.population)
+
+if(history.length>50)history.shift()
+
+let max=Math.max(...history)
+let min=Math.min(...history)
+
+document.getElementById("equilibrium").innerText=
+(max-min<5)?"Equilibrium: Yes":"Equilibrium: No"
+
+}
+
+/* ======================= */
+/* UPDATE CHARTS */
+/* ======================= */
+
+function updateCharts(count){
+
+popChart.data.labels.push("")
+if(popChart.data.labels.length>120)popChart.data.labels.shift()
+
+popChart.data.datasets.forEach((d,i)=>{
+d.data.push(count[types[i]])
+if(d.data.length>120)d.data.shift()
+})
+
+popChart.update()
+
+phaseChart.data.datasets[0].data.push({
+x:count.population,
+y:count.pollution
+})
+
+if(phaseChart.data.datasets[0].data.length>200)
+phaseChart.data.datasets[0].data.shift()
+
+phaseChart.update()
+
+}
+
+/* ======================= */
 /* MAIN LOOP */
-/* ============================= */
+/* ======================= */
 
 function loop(){
 
@@ -512,22 +459,13 @@ if(running)requestAnimationFrame(loop)
 
 }
 
-/* ============================= */
+/* ======================= */
 /* CONTROLS */
-/* ============================= */
+/* ======================= */
 
-function start(){
-running=true
-loop()
-}
-
-function pause(){
-running=false
-}
-
-function reset(){
-init()
-}
+function start(){running=true;loop()}
+function pause(){running=false}
+function reset(){init()}
 
 </script>
 
