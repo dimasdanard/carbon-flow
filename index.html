@@ -127,7 +127,6 @@ class Particle{
 constructor(type){
 
 this.type=type
-
 this.x=Math.random()*750
 this.y=Math.random()*520
 
@@ -157,7 +156,7 @@ ctx.fill()
 
 }
 
-/* INITIAL PARTICLES */
+/* INITIAL SETUP */
 
 function init(){
 
@@ -166,9 +165,7 @@ const types=["tree","water","population","industry","economy","pollution"]
 types.forEach(type=>{
 
 for(let i=0;i<25;i++){
-
 particles.push(new Particle(type))
-
 }
 
 })
@@ -182,9 +179,7 @@ init()
 function addParticles(type){
 
 for(let i=0;i<10;i++){
-
 particles.push(new Particle(type))
-
 }
 
 }
@@ -193,54 +188,77 @@ particles.push(new Particle(type))
 
 function interact(a,b){
 
-/* tree + population */
+/* tree eaten by population */
 
 if(a.type==="tree" && b.type==="population"){
+
+if(Math.random()<0.3){
 a.type="dead"
+}
+
+if(Math.random()<0.1){
 particles.push(new Particle("population"))
 }
 
-/* pollution + tree */
-
-if(a.type==="pollution" && b.type==="tree"){
-a.type="dead"
 }
 
-/* water + tree */
+/* water helps trees */
 
 if(a.type==="water" && b.type==="tree"){
+
+if(Math.random()<0.15){
 particles.push(new Particle("tree"))
 }
 
-/* water + pollution */
+}
 
-if(a.type==="water" && b.type==="pollution"){
+/* pollution removed by trees */
+
+if(a.type==="pollution" && b.type==="tree"){
+
+if(Math.random()<0.5){
 a.type="dead"
-particles.push(new Particle("pollution"))
 }
 
-/* industry + population */
-
-if(a.type==="industry" && b.type==="population"){
-particles.push(new Particle("economy"))
-particles.push(new Particle("pollution"))
 }
 
-/* population + economy */
-
-if(a.type==="population" && b.type==="economy"){
-particles.push(new Particle("population"))
-}
-
-/* pollution + population */
+/* pollution harms population */
 
 if(a.type==="pollution" && b.type==="population"){
+
+if(Math.random()<0.2){
 b.type="dead"
 }
 
 }
 
-/* COLLISIONS */
+/* industry creates economy & pollution */
+
+if(a.type==="industry" && b.type==="population"){
+
+if(Math.random()<0.15){
+particles.push(new Particle("economy"))
+}
+
+if(Math.random()<0.15){
+particles.push(new Particle("pollution"))
+}
+
+}
+
+/* economy boosts population */
+
+if(a.type==="population" && b.type==="economy"){
+
+if(Math.random()<0.1){
+particles.push(new Particle("population"))
+}
+
+}
+
+}
+
+/* COLLISION DETECTION */
 
 function collisions(){
 
@@ -263,11 +281,29 @@ interact(a,b)
 
 }
 
+}
+
+/* NATURAL DECAY */
+
+function naturalDecay(){
+
+particles.forEach(p=>{
+
+if(p.type==="population" && Math.random()<0.0005){
+p.type="dead"
+}
+
+if(p.type==="economy" && Math.random()<0.0003){
+p.type="dead"
+}
+
+})
+
 particles=particles.filter(p=>p.type!=="dead")
 
 }
 
-/* LOOP */
+/* DRAW + UPDATE LOOP */
 
 function loop(){
 
@@ -279,6 +315,7 @@ p.draw()
 })
 
 collisions()
+naturalDecay()
 
 if(running) requestAnimationFrame(loop)
 
@@ -287,23 +324,17 @@ if(running) requestAnimationFrame(loop)
 /* CONTROLS */
 
 function start(){
-
 running=true
 loop()
-
 }
 
 function pause(){
-
 running=false
-
 }
 
 function reset(){
-
 particles=[]
 init()
-
 }
 
 </script>
