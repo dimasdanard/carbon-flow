@@ -3,6 +3,7 @@
 <head>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
+
 <title>Carbon City Defense</title>
 
 <style>
@@ -36,7 +37,7 @@ cursor:pointer;
 
 <h1>Carbon City Defense</h1>
 
-<canvas id="game" width="800" height="500"></canvas>
+<canvas id="game" width="900" height="520"></canvas>
 
 <div>
 
@@ -49,30 +50,36 @@ cursor:pointer;
 <div>
 
 Year: <span id="year">2025</span> |
-Temperature: <span id="temp">1.2</span> °C |
-Sea Level: <span id="sea">0</span> cm
+Temp: <span id="temp">1.2</span>°C |
+Sea: <span id="sea">0</span> cm |
+Score: <span id="score">0</span>
 
 </div>
 
 <script>
 
+/* GAME CONSTANTS */
+
 const canvas=document.getElementById("game")
 const ctx=canvas.getContext("2d")
 
 const cell=40
-const rows=12
-const cols=20
+const rows=13
+const cols=22
 
 let grid=[]
-
 let towers=[]
 let co2=[]
+let cars=[]
 
 let tool="forest"
 
 let year=2025
 let temp=1.2
 let sea=0
+let score=0
+
+let disasterTimer=0
 
 /* CREATE MAP */
 
@@ -97,7 +104,7 @@ function setTool(t){
 tool=t
 }
 
-/* CLICK */
+/* BUILD */
 
 canvas.onclick=function(e){
 
@@ -111,8 +118,6 @@ let c=Math.floor(x/cell)
 
 let zone=grid[r][c]
 
-/* VALIDATION */
-
 if(tool==="forest" && zone!=="green") return
 if(tool==="solar" && zone!=="urban") return
 if(tool==="capture" && zone!=="industry") return
@@ -121,20 +126,37 @@ towers.push({r,c,type:tool})
 
 }
 
-/* SPAWN EMISSIONS */
+/* INDUSTRY EMISSIONS */
 
-function spawnCO2(){
+function spawnIndustryCO2(){
 
 for(let c=0;c<cols;c++){
 
-if(grid[0][c]==="industry"){
+if(grid[0][c]==="industry" && Math.random()<0.3){
 
 co2.push({
 x:c*cell+20,
-y:20
+y:20,
+speed:1
 })
 
 }
+
+}
+
+}
+
+/* TRANSPORT EMISSIONS */
+
+function spawnCars(){
+
+if(Math.random()<0.3){
+
+cars.push({
+x:0,
+y:180,
+speed:2
+})
 
 }
 
@@ -144,13 +166,36 @@ y:20
 
 function update(){
 
+spawnIndustryCO2()
+spawnCars()
+
+/* MOVE CO2 */
+
 co2.forEach(p=>{
 
-p.y+=0.8
+p.y+=p.speed
 
 })
 
-/* ABSORB */
+/* MOVE CARS */
+
+cars.forEach(c=>{
+
+c.x+=c.speed
+
+if(c.x>900){
+
+co2.push({
+x:c.x,
+y:c.y,
+speed:1
+})
+
+}
+
+})
+
+/* ABSORB CO2 */
 
 towers.forEach(t=>{
 
@@ -161,7 +206,7 @@ let ty=t.r*cell+20
 
 let d=Math.hypot(p.x-tx,p.y-ty)
 
-if(d<25){
+if(d<30){
 
 if(t.type==="forest") return false
 if(t.type==="capture") return false
@@ -178,9 +223,9 @@ return true
 
 co2.forEach(p=>{
 
-if(p.y>450){
+if(p.y>480){
 
-temp+=0.02
+temp+=0.015
 
 }
 
@@ -190,13 +235,41 @@ temp+=0.02
 
 sea+=temp*0.001
 
+/* SCORE */
+
+score+=1
+
+/* DISASTER */
+
+disasterTimer++
+
+if(disasterTimer>600){
+
+disasterTimer=0
+
+let type=Math.random()
+
+if(type<0.5){
+
+temp+=0.1
+alert("🔥 Heatwave!")
+
+}else{
+
+sea+=5
+alert("🌪 Coastal Storm!")
+
+}
+
+}
+
 }
 
 /* DRAW */
 
 function draw(){
 
-ctx.clearRect(0,0,800,500)
+ctx.clearRect(0,0,900,520)
 
 /* MAP */
 
@@ -218,10 +291,26 @@ ctx.fillRect(c*cell,r*cell,cell,cell)
 
 /* FLOOD */
 
-if(sea>10){
+if(sea>15){
 
 ctx.fillStyle="rgba(0,100,255,0.5)"
-ctx.fillRect(0,440,800,60)
+ctx.fillRect(0,440,900,80)
+
+}
+
+/* FACTORY SMOKE */
+
+ctx.fillStyle="gray"
+
+for(let c=0;c<cols;c++){
+
+if(grid[0][c]==="industry"){
+
+ctx.beginPath()
+ctx.arc(c*cell+20,15,5,0,Math.PI*2)
+ctx.fill()
+
+}
 
 }
 
@@ -233,6 +322,15 @@ ctx.beginPath()
 ctx.arc(p.x,p.y,4,0,Math.PI*2)
 ctx.fillStyle="orange"
 ctx.fill()
+
+})
+
+/* CARS */
+
+cars.forEach(c=>{
+
+ctx.fillStyle="white"
+ctx.fillRect(c.x,c.y,15,8)
 
 })
 
@@ -259,8 +357,6 @@ ctx.fill()
 
 function gameLoop(){
 
-spawnCO2()
-
 update()
 
 draw()
@@ -268,12 +364,11 @@ draw()
 year+=0.02
 
 document.getElementById("year").innerText=Math.floor(year)
-
 document.getElementById("temp").innerText=temp.toFixed(2)
+document.getElementById("sea").innerText=sea.toFixed(1)
+document.getElementById("score").innerText=score
 
-document.getElementById("sea").innerText=sea.toFixed(2)
-
-if(temp>2){
+if(temp>2.2){
 
 alert("Climate Collapse!")
 
