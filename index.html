@@ -14,7 +14,6 @@ background:#0f172a;
 color:white;
 font-family:Segoe UI;
 margin:0;
-padding:0;
 display:flex;
 flex-direction:column;
 align-items:center;
@@ -50,11 +49,8 @@ color:white;
 cursor:pointer;
 }
 
-.charts{
-display:grid;
-grid-template-columns:1fr 1fr 1fr;
-gap:20px;
-margin-top:15px;
+.chart{
+margin-top:20px;
 width:1000px;
 }
 
@@ -67,8 +63,6 @@ width:1000px;
 <h2>Ecosystem Dynamics Simulator</h2>
 
 <div class="dashboard">
-
-<!-- LEFT CONTROL PANEL -->
 
 <div class="panel">
 
@@ -91,11 +85,7 @@ Equilibrium: No
 
 </div>
 
-<!-- SIMULATION -->
-
 <canvas id="world" width="720" height="420"></canvas>
-
-<!-- FOOD WEB -->
 
 <div class="panel">
 
@@ -106,21 +96,13 @@ Equilibrium: No
 
 </div>
 
-<!-- CHARTS -->
-
-<div class="charts">
-
-<canvas id="popChart" height="200"></canvas>
-<canvas id="phaseChart" height="200"></canvas>
-<canvas id="bioChart" height="200"></canvas>
-
+<div class="chart">
+<canvas id="popChart"></canvas>
 </div>
 
 <script>
 
-/* ===================== */
 /* BASIC SETTINGS */
-/* ===================== */
 
 const canvas=document.getElementById("world")
 const ctx=canvas.getContext("2d")
@@ -139,9 +121,7 @@ economy:"#facc15",
 pollution:"#ef4444"
 }
 
-/* ===================== */
-/* PARTICLE CLASS */
-/* ===================== */
+/* PARTICLE */
 
 class Particle{
 
@@ -177,9 +157,7 @@ ctx.fill()
 
 }
 
-/* ===================== */
 /* INITIAL POPULATION */
-/* ===================== */
 
 function init(){
 
@@ -203,14 +181,12 @@ particles.push(new Particle(type))
 
 }
 
-/* ===================== */
-/* INTERACTION RULES */
-/* ===================== */
+/* INTERACTIONS */
 
 function interact(a,b){
 
 if(a.type==="tree" && b.type==="population"){
-if(Math.random()<0.3)a.type="dead"
+if(Math.random()<0.25)a.type="dead"
 }
 
 if(a.type==="water" && b.type==="tree"){
@@ -222,19 +198,39 @@ if(Math.random()<0.4)a.type="dead"
 }
 
 if(a.type==="pollution" && b.type==="population"){
-if(Math.random()<0.2)b.type="dead"
+if(Math.random()<0.25)b.type="dead"
 }
 
 if(a.type==="industry" && b.type==="population"){
 if(Math.random()<0.1)particles.push(new Particle("economy"))
+}
+
+if(a.type==="industry" && b.type==="tree"){
 if(Math.random()<0.1)particles.push(new Particle("pollution"))
 }
 
+if(a.type==="economy" && b.type==="population"){
+if(Math.random()<0.08)particles.push(new Particle("population"))
 }
 
-/* ===================== */
-/* COLLISION SYSTEM */
-/* ===================== */
+}
+
+/* RAIN CYCLE */
+
+function rainCycle(){
+
+let treeCount=particles.filter(p=>p.type==="tree").length
+let pollutionCount=particles.filter(p=>p.type==="pollution").length
+
+let rainChance=0.002 + treeCount*0.0001 - pollutionCount*0.00005
+
+if(Math.random()<rainChance){
+particles.push(new Particle("water"))
+}
+
+}
+
+/* COLLISIONS */
 
 function collisions(){
 
@@ -259,20 +255,13 @@ particles=particles.filter(p=>p.type!=="dead")
 
 }
 
-/* ===================== */
 /* STATS */
-/* ===================== */
 
 function stats(){
 
-let c={
-tree:0,
-water:0,
-population:0,
-industry:0,
-economy:0,
-pollution:0
-}
+let c={}
+
+types.forEach(t=>c[t]=0)
 
 particles.forEach(p=>c[p.type]++)
 
@@ -280,9 +269,7 @@ return c
 
 }
 
-/* ===================== */
-/* POPULATION GRAPH */
-/* ===================== */
+/* GRAPH */
 
 const popChart=new Chart(
 document.getElementById("popChart"),
@@ -303,69 +290,16 @@ options:{animation:false}
 }
 )
 
-/* ===================== */
-/* PHASE DIAGRAM */
-/* ===================== */
+/* FOOD WEB */
 
-const phaseChart=new Chart(
-document.getElementById("phaseChart"),
-{
-type:"scatter",
-data:{
-datasets:[{
-label:"Population vs Pollution",
-data:[],
-backgroundColor:"#ffffff"
-}]
-},
-options:{animation:false}
-}
-)
-
-/* ===================== */
-/* BIODIVERSITY INDEX */
-/* ===================== */
-
-const bioChart=new Chart(
-document.getElementById("bioChart"),
-{
-type:"line",
-data:{
-labels:[],
-datasets:[{
-label:"Biodiversity Index",
-data:[],
-borderColor:"#34d399",
-pointRadius:0,
-tension:0.3
-}]
-},
-options:{animation:false}
-}
-)
-
-/* ===================== */
-/* FOOD WEB WITH ARROWS */
-/* ===================== */
-
-function drawArrow(ctx,x1,y1,x2,y2){
+function arrow(ctx,x1,y1,x2,y2){
 
 ctx.strokeStyle="#9ca3af"
-ctx.lineWidth=1
 
 ctx.beginPath()
 ctx.moveTo(x1,y1)
 ctx.lineTo(x2,y2)
 ctx.stroke()
-
-let angle=Math.atan2(y2-y1,x2-x1)
-
-ctx.beginPath()
-ctx.moveTo(x2,y2)
-ctx.lineTo(x2-6*Math.cos(angle-0.3),y2-6*Math.sin(angle-0.3))
-ctx.lineTo(x2-6*Math.cos(angle+0.3),y2-6*Math.sin(angle+0.3))
-ctx.fillStyle="#9ca3af"
-ctx.fill()
 
 }
 
@@ -382,20 +316,25 @@ water:[30,100],
 population:[100,170],
 industry:[170,100],
 pollution:[60,50],
-economy:[140,50]
+economy:[140,50],
+rain:[100,70]
 }
 
-/* arrows */
-
-drawArrow(nctx,100,30,100,170)   // tree → population
-drawArrow(nctx,30,100,100,30)    // water → tree
-drawArrow(nctx,60,50,100,30)     // pollution → tree
-drawArrow(nctx,170,100,140,50)   // industry → economy
-drawArrow(nctx,170,100,60,50)    // industry → pollution
+arrow(nctx,100,70,30,100) // rain → water
+arrow(nctx,30,100,100,30) // water → tree
+arrow(nctx,100,30,100,170) // tree → population
+arrow(nctx,100,170,170,100) // population → industry
+arrow(nctx,170,100,140,50) // industry → economy
+arrow(nctx,170,100,60,50) // industry → pollution
+arrow(nctx,60,50,100,170) // pollution → population
+arrow(nctx,60,50,100,30) // pollution → tree
+arrow(nctx,100,30,100,70) // tree → rain
 
 for(let k in nodes){
 
-nctx.fillStyle=colors[k]
+let color=colors[k] || "#60a5fa"
+
+nctx.fillStyle=color
 nctx.beginPath()
 nctx.arc(nodes[k][0],nodes[k][1],8,0,Math.PI*2)
 nctx.fill()
@@ -406,15 +345,13 @@ nctx.fill()
 
 drawNetwork()
 
-/* ===================== */
 /* EQUILIBRIUM */
-/* ===================== */
 
 let history=[]
 
-function checkEquilibrium(count){
+function checkEquilibrium(c){
 
-history.push(count.population)
+history.push(c.population)
 
 if(history.length>40)history.shift()
 
@@ -426,33 +363,21 @@ document.getElementById("equilibrium").innerText=
 
 }
 
-/* ===================== */
-/* UPDATE CHARTS */
-/* ===================== */
+/* UPDATE GRAPH */
 
 function updateCharts(c){
 
 popChart.data.labels.push("")
-phaseChart.data.datasets[0].data.push({x:c.population,y:c.pollution})
-
-let biodiversity=Object.values(c).filter(v=>v>0).length
-
-bioChart.data.labels.push("")
-bioChart.data.datasets[0].data.push(biodiversity)
 
 types.forEach((t,i)=>{
 popChart.data.datasets[i].data.push(c[t])
 })
 
 popChart.update()
-phaseChart.update()
-bioChart.update()
 
 }
 
-/* ===================== */
-/* MAIN LOOP */
-/* ===================== */
+/* LOOP */
 
 function loop(){
 
@@ -464,6 +389,7 @@ p.draw()
 })
 
 collisions()
+rainCycle()
 
 let c=stats()
 
@@ -474,9 +400,7 @@ if(running)requestAnimationFrame(loop)
 
 }
 
-/* ===================== */
 /* CONTROLS */
-/* ===================== */
 
 function start(){running=true;loop()}
 function pause(){running=false}
